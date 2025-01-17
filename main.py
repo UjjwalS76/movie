@@ -9,9 +9,27 @@ from langchain.retrievers.self_query.base import SelfQueryRetriever
 # Set page config
 st.set_page_config(page_title="Movie Recommendation System", page_icon="🎬", layout="wide")
 
-# Initialize Perplexity API settings from Streamlit secrets
-os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
-os.environ["OPENAI_API_BASE"] = st.secrets["OPENAI_API_BASE"]
+# Check and display secrets status (for debugging)
+required_secrets = ["OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_MODEL"]
+missing_secrets = [secret for secret in required_secrets if secret not in st.secrets]
+
+if missing_secrets:
+    st.error(f"Missing required secrets: {', '.join(missing_secrets)}")
+    st.stop()
+
+# Initialize API settings
+try:
+    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+    os.environ["OPENAI_API_BASE"] = st.secrets["OPENAI_API_BASE"]
+    
+    # Display configuration (remove in production)
+    st.sidebar.write("Configuration:")
+    st.sidebar.write(f"API Base: {st.secrets['OPENAI_API_BASE']}")
+    st.sidebar.write(f"Model: {st.secrets['OPENAI_MODEL']}")
+    # Don't display the API key for security
+except Exception as e:
+    st.error(f"Error setting environment variables: {str(e)}")
+    st.stop()
 
 # Movie data
 docs = [
@@ -60,8 +78,19 @@ docs = [
 # Initialize components
 @st.cache_resource
 def initialize_retriever():
-    embeddings = OpenAIEmbeddings()
-    vectorstore = Chroma.from_documents(docs, embeddings)
+    try:
+        embeddings = OpenAIEmbeddings()
+        st.sidebar.success("✓ Embeddings initialized")
+    except Exception as e:
+        st.error(f"Error initializing embeddings: {str(e)}")
+        st.stop()
+        
+    try:
+        vectorstore = Chroma.from_documents(docs, embeddings)
+        st.sidebar.success("✓ Vector store initialized")
+    except Exception as e:
+        st.error(f"Error initializing vector store: {str(e)}")
+        st.stop()
     
     metadata_field_info = [
         AttributeInfo(
@@ -87,21 +116,31 @@ def initialize_retriever():
     ]
     
     document_content_description = "Brief summary of a movie"
-    llm = ChatOpenAI(
-        temperature=0,
-        model=st.secrets["OPENAI_MODEL"],
-        openai_api_key=st.secrets["OPENAI_API_KEY"],
-        openai_api_base=st.secrets["OPENAI_API_BASE"]
-    )
     
-    retriever = SelfQueryRetriever.from_llm(
-        llm,
-        vectorstore,
-        document_content_description,
-        metadata_field_info,
-    )
+    try:
+        llm = ChatOpenAI(
+            temperature=0,
+            model=st.secrets["OPENAI_MODEL"],
+            openai_api_key=st.secrets["OPENAI_API_KEY"],
+            openai_api_base=st.secrets["OPENAI_API_BASE"]
+        )
+        st.sidebar.success("✓ LLM initialized")
+    except Exception as e:
+        st.error(f"Error initializing LLM: {str(e)}")
+        st.stop()
     
-    return retriever
+    try:
+        retriever = SelfQueryRetriever.from_llm(
+            llm,
+            vectorstore,
+            document_content_description,
+            metadata_field_info,
+        )
+        st.sidebar.success("✓ Retriever initialized")
+        return retriever
+    except Exception as e:
+        st.error(f"Error initializing retriever: {str(e)}")
+        st.stop()
 
 # Streamlit UI
 st.title("🎬 Movie Recommendation System")
@@ -115,11 +154,7 @@ This app helps you find movies based on your preferences. You can:
 """)
 
 # Initialize retriever
-try:
-    retriever = initialize_retriever()
-except Exception as e:
-    st.error("Error initializing the app. Please check if all the required secrets are properly configured.")
-    st.stop()
+retriever = initialize_retriever()
 
 # User input
 user_query = st.text_input("What kind of movie are you looking for?", 
@@ -144,7 +179,7 @@ if user_query:
                 st.warning("No movies found matching your criteria. Try adjusting your search!")
                 
         except Exception as e:
-            st.error(f"An error occurred: {str(e)}")
+            st.error(f"An error occurred during search: {str(e)}")
             st.info("Please try rephrasing your query or use simpler search criteria.")
 
 # Footer
