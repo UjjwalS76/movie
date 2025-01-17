@@ -9,9 +9,9 @@ from langchain.retrievers.self_query.base import SelfQueryRetriever
 # Set page config
 st.set_page_config(page_title="Movie Recommendation System", page_icon="🎬", layout="wide")
 
-# Initialize Perplexity API settings
-os.environ["OPENAI_API_KEY"] = "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"
-os.environ["OPENAI_API_BASE"] = "https://api.perplexity.ai"
+# Initialize Perplexity API settings from Streamlit secrets
+os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+os.environ["OPENAI_API_BASE"] = st.secrets["OPENAI_API_BASE"]
 
 # Movie data
 docs = [
@@ -89,9 +89,9 @@ def initialize_retriever():
     document_content_description = "Brief summary of a movie"
     llm = ChatOpenAI(
         temperature=0,
-        model="llama-3.1-sonar-small-128k-online",
-        openai_api_key="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",
-        openai_api_base="https://api.perplexity.ai"
+        model=st.secrets["OPENAI_MODEL"],
+        openai_api_key=st.secrets["OPENAI_API_KEY"],
+        openai_api_base=st.secrets["OPENAI_API_BASE"]
     )
     
     retriever = SelfQueryRetriever.from_llm(
@@ -115,7 +115,11 @@ This app helps you find movies based on your preferences. You can:
 """)
 
 # Initialize retriever
-retriever = initialize_retriever()
+try:
+    retriever = initialize_retriever()
+except Exception as e:
+    st.error("Error initializing the app. Please check if all the required secrets are properly configured.")
+    st.stop()
 
 # User input
 user_query = st.text_input("What kind of movie are you looking for?", 
