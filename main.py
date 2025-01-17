@@ -2,14 +2,14 @@ import streamlit as st
 import os
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.schema import Document
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain.chains.query_constructor.base import AttributeInfo
 from langchain.retrievers.self_query.base import SelfQueryRetriever
 
 # Set page config
 st.set_page_config(page_title="Movie Recommendation System", page_icon="🎬", layout="wide")
 
-# Check and display secrets status (for debugging)
+# Check and display secrets status
 required_secrets = ["OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_MODEL"]
 missing_secrets = [secret for secret in required_secrets if secret not in st.secrets]
 
@@ -26,7 +26,6 @@ try:
     st.sidebar.write("Configuration:")
     st.sidebar.write(f"API Base: {st.secrets['OPENAI_API_BASE']}")
     st.sidebar.write(f"Model: {st.secrets['OPENAI_MODEL']}")
-    # Don't display the API key for security
 except Exception as e:
     st.error(f"Error setting environment variables: {str(e)}")
     st.stop()
@@ -86,7 +85,7 @@ def initialize_retriever():
         st.stop()
         
     try:
-        vectorstore = Chroma.from_documents(docs, embeddings)
+        vectorstore = FAISS.from_documents(docs, embeddings)
         st.sidebar.success("✓ Vector store initialized")
     except Exception as e:
         st.error(f"Error initializing vector store: {str(e)}")
